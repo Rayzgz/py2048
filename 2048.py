@@ -1,29 +1,56 @@
 import curses
-from random import randrange, choice  # generate and place new tile
+from random import randrange, choice 
 from collections import defaultdict
 
 letter_codes = [ord(ch) for ch in 'WASDRQwasdrq']
-# print(letter_codes)
 actions = ['Up', 'Left', 'Down', 'Right', 'Restart', 'Exit']
 actions_dict = dict(zip(letter_codes, actions * 2))
 
 
-# print(actions_dict)
 
-def get_user_action(keyboard):
-    char = 'N'
-    while char not in actions_dict:
-        char = keyboard.getch()
+def main(stdscr):
+    def init():
+        game_field.reset()
+        return 'Game'
 
-    return actions_dict[char]
+    def not_game(state):
+        game_field.draw(stdscr)
+        action = get_user_action(stdscr)
+        responses = defaultdict(lambda: state)  
+        responses['Restart'], responses['Exit'] = 'Init', 'Exit' 
+        return responses[action]
 
+    def game():
+        game_field.draw(stdscr)
+        action = get_user_action(stdscr)
 
-def transpose(field):
-    return [list(row) for row in zip(*field)]
+        if action == 'Restart':
+            return 'Init'
+        if action == 'Exit':
+            return 'Exit'
+        if game_field.move(action):  # move successful
+            if game_field.is_win():
+                return 'Win'
+            if game_field.is_gameover():
+                return 'Gameover'
+        return 'Game'
 
+    state_actions = {
+        'Init': init,
+        'Win': lambda: not_game('Win'),
+        'Gameover': lambda: not_game('Gameover'),
+        'Game': game
+    }
 
-def invert(field):
-    return [row[::-1] for row in field]
+    curses.use_default_colors()
+
+    game_field = GameField(win=32)
+
+    state = 'Init'
+
+    while state != 'Exit':
+        state = state_actions[state]()
+
 
 
 class GameField(object):
@@ -161,48 +188,21 @@ class GameField(object):
             return False
 
 
-def main(stdscr):
-    def init():
-        game_field.reset()
-        return 'Game'
+def get_user_action(keyboard):
+    char = 'N'
+    while char not in actions_dict:
+        char = keyboard.getch()
 
-    def not_game(state):
-        game_field.draw(stdscr)
-        action = get_user_action(stdscr)
-        responses = defaultdict(lambda: state)  
-        responses['Restart'], responses['Exit'] = 'Init', 'Exit' 
-        return responses[action]
+    return actions_dict[char]
 
-    def game():
-        game_field.draw(stdscr)
-        action = get_user_action(stdscr)
 
-        if action == 'Restart':
-            return 'Init'
-        if action == 'Exit':
-            return 'Exit'
-        if game_field.move(action):  # move successful
-            if game_field.is_win():
-                return 'Win'
-            if game_field.is_gameover():
-                return 'Gameover'
-        return 'Game'
+def transpose(field):
+    return [list(row) for row in zip(*field)]
 
-    state_actions = {
-        'Init': init,
-        'Win': lambda: not_game('Win'),
-        'Gameover': lambda: not_game('Gameover'),
-        'Game': game
-    }
 
-    curses.use_default_colors()
+def invert(field):
+    return [row[::-1] for row in field]
 
-    game_field = GameField(win=32)
-
-    state = 'Init'
-
-    while state != 'Exit':
-        state = state_actions[state]()
 
 
 curses.wrapper(main)
